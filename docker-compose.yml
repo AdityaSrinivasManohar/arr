@@ -157,3 +157,29 @@ services:
               count: 1
               capabilities: [gpu]
     restart: unless-stopped
+
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale
+    # host networking puts tailscale0 in the host's stack, so every port
+    # published by the services above is reachable over the tailnet.
+    # (note: `hostname:` is not allowed alongside host networking — the
+    #  node name comes from TS_HOSTNAME instead)
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_HOSTNAME=arr
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      # don't let tailscale rewrite the host's resolv.conf — MagicDNS
+      # resolution happens on the *client* side, so the server doesn't need it
+      - TS_ACCEPT_DNS=false
+      - TZ=${TZ}
+    volumes:
+      - /data/config/tailscale:/var/lib/tailscale
+    restart: unless-stopped
