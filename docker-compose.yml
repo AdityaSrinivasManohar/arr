@@ -180,3 +180,31 @@ services:
     volumes:
       - /data/config/tailscale:/var/lib/tailscale
     restart: unless-stopped
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      # required since v1.0 — without it you get a blank "host validation failed" page
+      - HOMEPAGE_ALLOWED_HOSTS=10.0.0.200:3000,arr:3000,localhost:3000
+      # API keys stay in .env; services.yaml only references these names
+      - HOMEPAGE_VAR_RADARR_KEY=${RADARR_API_KEY}
+      - HOMEPAGE_VAR_SONARR_KEY=${SONARR_API_KEY}
+      - HOMEPAGE_VAR_PROWLARR_KEY=${PROWLARR_API_KEY}
+      - HOMEPAGE_VAR_BAZARR_KEY=${BAZARR_API_KEY}
+      - HOMEPAGE_VAR_JELLYSEERR_KEY=${JELLYSEERR_API_KEY}
+      - HOMEPAGE_VAR_JELLYFIN_KEY=${JELLYFIN_API_KEY}
+      - HOMEPAGE_VAR_QBIT_USER=${QBIT_USER}
+      - HOMEPAGE_VAR_QBIT_PASS=${QBIT_PASS}
+    volumes:
+      - /data/config/homepage:/app/config
+      # read-only, and deliberately NOT /data — the disk widget reports the
+      # filesystem this path sits on, so it shows the whole NVMe without
+      # exposing /data/config to this container
+      - /data/movies:/mnt/media:ro
+    ports:
+      - 3000:3000
+    restart: unless-stopped

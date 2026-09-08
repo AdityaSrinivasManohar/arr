@@ -1,0 +1,21 @@
+---
+- resources:
+    label: server
+    cpu: true
+    memory: true
+    cputemp: true
+    uptime: true
+    # /mnt/media is a read-only bind of /data/movies. The widget reports the
+    # filesystem that path lives on, so this shows the whole NVMe without
+    # exposing /data/config to the container.
+    disk: /mnt/media
+
+- search:
+    provider: duckduckgo
+    target: _blank
+
+- datetime:
+    text_size: xl
+    format:
+      timeStyle: short
+      dateStyle: medium

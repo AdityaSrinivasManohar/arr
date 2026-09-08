@@ -1,0 +1,3 @@
+---
+# Intentionally empty. Docker socket auto-discovery would grant this container
+# effective root on the host; services are listed manually in services.yaml.

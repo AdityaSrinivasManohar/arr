@@ -1,0 +1,95 @@
+---
+# Internal `url:` values use container names on the compose network.
+# qBittorrent shares gluetun's netns, so it answers as `gluetun`, not `qbittorrent`.
+#
+# `href:` is what your browser opens. Using 10.0.0.200 works on the LAN today.
+# Once Tailscale + MagicDNS are up, swap these to http://arr:<port> so the
+# dashboard also works away from home:
+#   sed -i 's|http://10.0.0.200:|http://arr:|g' services.yaml
+
+- Media:
+    - Jellyfin:
+        icon: jellyfin.png
+        href: http://10.0.0.200:8096
+        description: Media server / streaming
+        widget:
+          type: jellyfin
+          url: http://jellyfin:8096
+          key: "{{HOMEPAGE_VAR_JELLYFIN_KEY}}"
+          enableBlocks: true
+          enableNowPlaying: true
+
+    - Jellyseerr:
+        icon: jellyseerr.png
+        href: http://10.0.0.200:5055
+        description: Request front-end
+        widget:
+          type: jellyseerr
+          url: http://jellyseerr:5055
+          key: "{{HOMEPAGE_VAR_JELLYSEERR_KEY}}"
+
+- Automation:
+    - Radarr:
+        icon: radarr.png
+        href: http://10.0.0.200:7878
+        description: Movies
+        widget:
+          type: radarr
+          url: http://radarr:7878
+          key: "{{HOMEPAGE_VAR_RADARR_KEY}}"
+          enableQueue: true
+
+    - Sonarr:
+        icon: sonarr.png
+        href: http://10.0.0.200:8989
+        description: TV shows
+        widget:
+          type: sonarr
+          url: http://sonarr:8989
+          key: "{{HOMEPAGE_VAR_SONARR_KEY}}"
+          enableQueue: true
+
+    - Bazarr:
+        icon: bazarr.png
+        href: http://10.0.0.200:6767
+        description: Subtitles
+        widget:
+          type: bazarr
+          url: http://bazarr:6767
+          key: "{{HOMEPAGE_VAR_BAZARR_KEY}}"
+
+- Downloads:
+    - qBittorrent:
+        icon: qbittorrent.png
+        href: http://10.0.0.200:8080
+        description: Torrent client (via gluetun)
+        widget:
+          type: qbittorrent
+          url: http://gluetun:8080
+          username: "{{HOMEPAGE_VAR_QBIT_USER}}"
+          password: "{{HOMEPAGE_VAR_QBIT_PASS}}"
+
+    - Prowlarr:
+        icon: prowlarr.png
+        href: http://10.0.0.200:9696
+        description: Indexer manager
+        widget:
+          type: prowlarr
+          url: http://prowlarr:9696
+          key: "{{HOMEPAGE_VAR_PROWLARR_KEY}}"
+
+- Management:
+    - Profilarr:
+        icon: mdi-tune-variant
+        href: http://10.0.0.200:6868
+        description: Quality profiles / custom formats
+
+    - FlareSolverr:
+        icon: mdi-cloud-lock-outline
+        href: http://10.0.0.200:8191
+        description: Cloudflare bypass proxy
+
+    - Tailscale:
+        icon: tailscale.png
+        href: https://login.tailscale.com/admin/machines
+        description: Remote access admin
