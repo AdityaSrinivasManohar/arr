@@ -26,7 +26,7 @@ anywhere (at home it still takes the direct LAN path, so nothing is lost):
 
 ```
 Host arr
-    HostName arr.<your-tailnet>.ts.net
+    HostName arr.grayling-dory.ts.net
     User adsm
 ```
 

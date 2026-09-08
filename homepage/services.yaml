@@ -2,15 +2,16 @@
 # Internal `url:` values use container names on the compose network.
 # qBittorrent shares gluetun's netns, so it answers as `gluetun`, not `qbittorrent`.
 #
-# `href:` is what your browser opens. Using 10.0.0.200 works on the LAN today.
-# Once Tailscale + MagicDNS are up, swap these to http://arr:<port> so the
-# dashboard also works away from home:
-#   sed -i 's|http://10.0.0.200:|http://arr:|g' services.yaml
+# `href:` is what your browser opens. Uses the MagicDNS FQDN, which works from
+# anywhere *as long as Tailscale is connected* -- at home it still takes the
+# direct LAN path, so there's no penalty for using it next to the machine.
+# Without Tailscale on the client, fall back to http://arr.grayling-dory.ts.net:<port>.
+# Bare short names (http://arr:<port>) do NOT resolve reliably from iOS.
 
 - Media:
     - Jellyfin:
         icon: jellyfin.png
-        href: http://10.0.0.200:8096
+        href: http://arr.grayling-dory.ts.net:8096
         description: Media server / streaming
         widget:
           type: jellyfin
@@ -21,7 +22,7 @@
 
     - Jellyseerr:
         icon: jellyseerr.png
-        href: http://10.0.0.200:5055
+        href: http://arr.grayling-dory.ts.net:5055
         description: Request front-end
         widget:
           type: jellyseerr
@@ -31,7 +32,7 @@
 - Automation:
     - Radarr:
         icon: radarr.png
-        href: http://10.0.0.200:7878
+        href: http://arr.grayling-dory.ts.net:7878
         description: Movies
         widget:
           type: radarr
@@ -41,7 +42,7 @@
 
     - Sonarr:
         icon: sonarr.png
-        href: http://10.0.0.200:8989
+        href: http://arr.grayling-dory.ts.net:8989
         description: TV shows
         widget:
           type: sonarr
@@ -51,7 +52,7 @@
 
     - Bazarr:
         icon: bazarr.png
-        href: http://10.0.0.200:6767
+        href: http://arr.grayling-dory.ts.net:6767
         description: Subtitles
         widget:
           type: bazarr
@@ -61,7 +62,7 @@
 - Downloads:
     - qBittorrent:
         icon: qbittorrent.png
-        href: http://10.0.0.200:8080
+        href: http://arr.grayling-dory.ts.net:8080
         description: Torrent client (via gluetun)
         widget:
           type: qbittorrent
@@ -71,7 +72,7 @@
 
     - Prowlarr:
         icon: prowlarr.png
-        href: http://10.0.0.200:9696
+        href: http://arr.grayling-dory.ts.net:9696
         description: Indexer manager
         widget:
           type: prowlarr
@@ -81,12 +82,12 @@
 - Management:
     - Profilarr:
         icon: mdi-tune-variant
-        href: http://10.0.0.200:6868
+        href: http://arr.grayling-dory.ts.net:6868
         description: Quality profiles / custom formats
 
     - FlareSolverr:
         icon: mdi-cloud-lock-outline
-        href: http://10.0.0.200:8191
+        href: http://arr.grayling-dory.ts.net:8191
         description: Cloudflare bypass proxy
 
     - Tailscale:

@@ -189,7 +189,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
       # required since v1.0 — without it you get a blank "host validation failed" page
-      - HOMEPAGE_ALLOWED_HOSTS=10.0.0.200:3000,arr:3000,localhost:3000
+      - HOMEPAGE_ALLOWED_HOSTS=10.0.0.200:3000,arr.grayling-dory.ts.net:3000,arr:3000,localhost:3000
       # API keys stay in .env; services.yaml only references these names
       - HOMEPAGE_VAR_RADARR_KEY=${RADARR_API_KEY}
       - HOMEPAGE_VAR_SONARR_KEY=${SONARR_API_KEY}
