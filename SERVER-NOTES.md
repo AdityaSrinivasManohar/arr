@@ -12,7 +12,8 @@
 | OS | Ubuntu 26.04.1 |
 | GPU | RTX 3060 Mobile (6GB) — NVIDIA driver 595.84, CUDA 13.2 |
 | Docker compose location | `~/arr/docker-compose.yml` |
-| Env file | `~/arr/.env` (holds PUID, PGID, TZ, NordVPN WireGuard credentials, Tailscale auth key) |
+| Env file | `~/arr/.env` on the **server** -- holds the real PUID/PGID/TZ, NordVPN WireGuard credentials, Tailscale auth key, Homepage API keys |
+| Repo `.env` | The `.env` in the git repo is a **`changeme` template**, not real secrets. **Never `scp` it to the server** -- doing so overwrites the live WireGuard keys and silently kills gluetun. Only ever copy `docker-compose.yml` |
 
 **SSH config block (on your Mac/PC), for reference:**
 ```
@@ -46,7 +47,8 @@ Host arr
 │   ├── jellyseerr/
 │   ├── profilarr/
 │   ├── jellyfin/
-│   └── tailscale/
+│   ├── tailscale/
+│   └── homepage/
 ├── downloads/
 │   ├── complete/
 │   └── incomplete/
@@ -73,7 +75,8 @@ All containers are reachable at `10.0.0.200` on the ports below (except qBittorr
 | **Jellyseerr** | Request front-end | `http://10.0.0.200:5055` | Connected to Jellyfin, Sonarr, Radarr. Stores its **own** root folder per service -- update it whenever Radarr/Sonarr root folders change, or every request fails |
 | **FlareSolverr** | Cloudflare bypass proxy | `http://10.0.0.200:8191` | Only used by Prowlarr indexers explicitly tagged `flaresolverr` |
 | **Profilarr** | Quality profile / custom format management | `http://10.0.0.200:6868` | Replaces the earlier Recyclarr plan -- same goal (TRaSH-style scoring), but with a web UI instead of YAML/CLI |
-| **tailscale** | Remote access VPN (mesh) | -- (no direct UI) | Runs `network_mode: host`, so every port in this table is reachable over the tailnet as `arr:<port>`. Admin console at <https://login.tailscale.com/admin/machines> |
+| **tailscale** | Remote access VPN (mesh) | -- (no direct UI) | Runs `network_mode: host`, so every port in this table is reachable over the tailnet as `arr.grayling-dory.ts.net:<port>`. Admin console at <https://login.tailscale.com/admin/machines> |
+| **Homepage** | Dashboard | `http://10.0.0.200:3000` | Single pane for the whole stack. Config in `/data/config/homepage/`, mirrored in the repo under `homepage/`. See Dashboard section |
 
 ---
 
@@ -220,6 +223,74 @@ in six months, typically while you're away from home.
   no good for "watch it at a friend's house." Node sharing or Funnel would cover
   that if it ever comes up.
 
+### MagicDNS
+
+Tailnet name: **`grayling-dory.ts.net`**, so the server is `arr.grayling-dory.ts.net`.
+Enabled in the admin console under DNS. Resolution happens client-side, which is why
+`TS_ACCEPT_DNS=false` on the server is correct and should stay.
+
+Use the **full FQDN**, not the bare short name -- `http://arr:<port>` does not resolve
+reliably from iOS. At home the FQDN still takes the direct LAN path, so there's no
+penalty for using it next to the machine.
+
+`10.0.0.200` only works on the LAN: no subnet routes are advertised, so it is
+unreachable over the tailnet. (An iPhone on the Xfinity guest SSID can't reach it
+even on wifi -- client isolation. Another reason to just leave Tailscale connected.)
+
+### Running Tailscale alongside NordVPN (client side)
+
+Nothing here affects the server's gluetun tunnel -- that's a separate machine and a
+separate purpose. This is only about the NordVPN app on personal devices.
+
+- **macOS: both work, but only with NordVPN's Kill Switch turned OFF.** Confirmed
+  working. The conflict isn't routing -- Tailscale only claims `100.64.0.0/10`, a more
+  specific prefix than Nord's default route. It's the Kill Switch, which packet-filters
+  everything off the Nord interface and blocks Tailscale from reaching its coordination
+  server at all.
+- **iOS / Android: impossible.** The OS permits only one active VPN tunnel. Toggle
+  between them; this is not a misconfiguration to debug.
+- If both are wanted simultaneously on the phone, the fix is **Mullvad exit nodes via
+  Tailscale** (paid add-on) -- one tunnel serving both purposes.
+- Worth remembering: NordVPN on the *client* is largely redundant for torrent privacy
+  now. Downloads run on the server through gluetun. Client-side Nord is only doing
+  browsing privacy on untrusted networks.
+
+---
+
+## Dashboard (Homepage)
+
+`http://arr.grayling-dory.ts.net:3000` (or `http://10.0.0.200:3000` on the LAN).
+Config lives in `/data/config/homepage/`, mirrored in the repo under `homepage/`.
+
+| File | Holds |
+|---|---|
+| `settings.yaml` | title, theme, group layout |
+| `services.yaml` | the service tiles + widgets |
+| `widgets.yaml` | resources (CPU/RAM/temp/disk), search, clock |
+| `bookmarks.yaml` | TRaSH / Dictionarry / Servarr links |
+| `docker.yaml` | intentionally empty -- see below |
+
+Things that will bite you:
+
+- **`HOMEPAGE_ALLOWED_HOSTS` is required** (v1.0+). Any hostname not listed gets a
+  blank "host validation failed" page. It's an env var in `docker-compose.yml`, so
+  changing it needs `docker compose up -d homepage`, not just a config reload.
+  Currently allows `10.0.0.200:3000`, `arr.grayling-dory.ts.net:3000`, `arr:3000`,
+  `localhost:3000`.
+- **Widget `url:` values use container names**, and qBittorrent answers as
+  `gluetun:8080` -- same netns quirk as everywhere else.
+- **API keys are NOT in the repo.** `services.yaml` only references
+  `{{HOMEPAGE_VAR_*}}` names; the real values live in the server's `~/arr/.env`.
+- **Docker socket auto-discovery is deliberately off.** Mounting `/var/run/docker.sock`
+  would grant this container effective root on the host. Services are listed by hand.
+- **Homepage has no auth of its own** and its config holds every app's API key.
+  Fine on LAN + tailnet only. Never expose it publicly.
+- The disk widget reads `/mnt/media`, a read-only bind of `/data/movies`. It reports
+  the filesystem that path sits on, so it shows the whole NVMe *without* giving the
+  container access to `/data/config`.
+
+Config edits (other than env vars) are picked up on page refresh -- no restart.
+
 ---
 
 ## Quality Profiles (Profilarr)
@@ -310,11 +381,53 @@ docker exec jellyfin nvidia-smi        # during playback: expect an ffmpeg proce
 
 ---
 
+## Host-Level Tweaks (not in Docker)
+
+Configured directly on the Ubuntu host. None of it lives in `docker-compose.yml`,
+so it's the first thing lost after a reinstall and the easiest to forget.
+
+### Battery charge limit -- capped at 60%
+
+The G14 is permanently on AC, and holding a lithium cell at 100% is the fastest way
+to degrade it. Capped through the kernel charge-threshold interface:
+
+```
+cat /sys/class/power_supply/BAT0/charge_control_end_threshold   # -> 60
+cat /sys/class/power_supply/BAT0/status                         # -> Not charging
+```
+
+The sysfs value resets on every boot, so it's applied by
+`/etc/systemd/system/battery-charge-limit.service` -- a oneshot unit with
+`RemainAfterExit=yes`, wanted by `multi-user.target suspend.target hibernate.target`.
+
+- 60% is what ASUS's own "Maximum Lifespan" mode uses. If the firmware ever refuses a
+  value, 80 is universally supported.
+- **`Not charging` is the goal state, not a fault.** Capacity drifts down slowly rather
+  than dropping fast, since the machine runs off AC rather than the cell.
+- `asusctl` (asus-linux.org) does the same thing plus fan curves and power profiles,
+  but needs a third-party repo. The systemd unit has no dependencies and won't break
+  on a distro upgrade.
+
+**The battery doubles as a built-in UPS** -- a brief power cut won't drop the box
+mid-import or corrupt an app database. That's a real advantage of running this on a
+laptop, and worth remembering before "fixing" anything in this section.
+
+### Lid-close sleep -- disabled
+
+Via `/etc/systemd/logind.conf` (`HandleLidSwitch=ignore`, etc.) so the server stays up
+with the lid shut.
+
+### Static IP -- set via netplan, not DHCP reservation
+
+`10.0.0.200` is assigned statically on the Ubuntu side. Xfinity's app and admin UI
+never exposed a DHCP reservation option, so the router knows nothing about it -- if the
+IP ever changes unexpectedly, look at netplan, not the router.
+
+---
+
 ## Still To Do / Known Follow-ups
 
 - **Recyclarr -- abandoned in favor of Profilarr.** Not deployed, no longer part of the plan; ignore any earlier references to `recyclarr.yml`/`secrets.yml`.
-- **DHCP reservation** for `10.0.0.200` -- Xfinity's app/admin UI didn't expose this option, so the IP is set statically on the Ubuntu side instead (via netplan) rather than reserved at the router.
-- **Lid-close sleep** -- disabled via `/etc/systemd/logind.conf` (`HandleLidSwitch=ignore`, etc.) so the server stays up with the lid closed.
 - **Storage expansion** -- `/data` currently lives on the internal **NVMe** drive (single disk, no redundancy). Discussed moving bulk media to a multi-bay USB DAS enclosure (e.g. 4-bay + two 8TB drives) with mergerfs + SnapRAID for pooling/parity, not yet purchased or set up. Keeping transcode scratch on the NVMe is worth preserving through any such move.
 - **Sonarr quality profile** -- Sonarr has no library yet. Decide on a profile there when TV gets added; the "4K to 1080p Cascade" work was Radarr-only and is now superseded by "Movies 2160p HQ" anyway.
 - **Move configs out of `/data`** -- `/data/config` sits inside the shared `/data:/data` mount, so those four containers can see every app's config (API keys, qBittorrent credentials). Relocating to `/opt/appdata` needs no app-side changes (the in-container `/config` path stays the same) and would also let Jellyfin's broad `/data:/media` mount be narrowed.
